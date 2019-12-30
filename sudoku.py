@@ -1,23 +1,18 @@
-import time
+"""
+#   A simple Sudoku solver.
+#   
+#   Starting from the top left and moving column by column, it inserts digits accepted by the rules.
+#   If it can't palce a digit, it backtracks and blacklists the previous digit at that specific index
+#   and tries a new one. This reoccurs until the Sudoku is solved.
+"""
+import copy
 
-"""
-input_data = [
-             [1, 4, 0,   0, 0, 0,     0, 0, 0],
-             [0, 0, 0,   0, 0, 0,     0, 0, 0],
-             [0, 0, 0,   0, 0, 0,     0, 0, 0],
-             
-             [0, 0, 0,   0, 0, 0,     0, 0, 0],
-             [0, 0, 0,   0, 0, 0,     0, 0, 0],
-             [0, 0, 0,   0, 0, 0,     0, 0, 0],
-             
-             [0, 0, 0,   0, 0, 0,     0, 0, 0],
-             [0, 0, 0,   0, 0, 0,     0, 0, 0],
-             [0, 0, 0,   0, 0, 0,     0, 0, 0]
-            ]
-            
-            
-"""
-input_data = [
+ANIMATION_MODE = 0 # 1 to animate (slow), 0 to only show solution (fast)
+if ANIMATION_MODE:
+    import time
+    import os
+
+input_sudoku = [
              [0, 0, 0,   9, 0, 0,     6, 0, 0],
              [6, 4, 0,   0, 0, 0,     0, 3, 1],
              [8, 0, 0,   0, 1, 0,     0, 0, 9],
@@ -31,9 +26,12 @@ input_data = [
              [0, 5, 0,   0, 9, 0,     2, 0, 0]
             ]
 
-def get_box(board, row, col):
-    box_row = box_col = 0 # Index of top left pos in current box
+# Returns a list of all digits in a box. A box is a 3x3 field containing row, col.
+def get_box_digits(board, row, col):
+    # Index of top left pos in current box
+    box_row = box_col = 0
     
+    # Find the index of the box containing row, col.
     if row <= 2:
         box_row = 0
     elif row > 2 and row <= 5:
@@ -56,6 +54,7 @@ def get_box(board, row, col):
             
     return digits
 
+# Returns true if @param digit can be placed at @param row, @param col>.
 def valid_digit(board, digit, row, col, used_digits_at_index):
     if (row, col) in used_digits_at_index:
         if digit in used_digits_at_index[(row, col)]:
@@ -71,13 +70,13 @@ def valid_digit(board, digit, row, col, used_digits_at_index):
             return False
             
     # Check 3x3 box
-    box = get_box(board, row, col)
+    box = get_box_digits(board, row, col)
     if digit in box:
         return False
 
     return True
     
-
+# Increments row and col to point at the next index on the board.
 def next_index(row, col):
     col = col + 1
     if col >= 9:
@@ -86,6 +85,7 @@ def next_index(row, col):
         
     return row, col
 
+# Decrements row and col to point at the previous index on the board.
 def prev_index(row, col):
     if col <= 0:
         col = 8
@@ -95,26 +95,62 @@ def prev_index(row, col):
         
     return row, col
 
-def bp():
-    return
+# Terminal animation
+def animate_solution(board, row, col):
+    time.sleep(0.002)
+    os.system('clear')
+    print('Index: ' + str(row) + ", "  + str(col))
+    print_board(board)
 
-def solve_dat_shit(board, row, col, used_digits_at_index, predef_indicies):
+# Prints the Sudoku in a presentable way
+def print_board(board):
+    print('=================================')
+    for index, row in enumerate(board):
+        print('{} | {} | {}'.format(row[:3], row[3:6], row[6:9]))
+        if (index + 1) % 3 == 0 and index < 7: # Fancy way of writing "if index == 2 or 5"
+            print('---------------------------------')
+    print('=================================')
+    
+# Returns a list of indicies containing a non zero digit.
+def get_predefined_digit_indicies(board):
+    indicies = []
+    for row in range(0, 9):
+        for col in range(0, 9):
+            if board[row][col] != 0:
+                indicies.append((row, col))
+
+                # Following is a hacky solution to check if the input Sudoku is valid.
+                # Just ignore it.
+                board_without_current_index = copy.deepcopy(board)
+                board_without_current_index[row][col] = 0
+                if not valid_digit(board_without_current_index, board[row][col], row, col, {}):
+                    print("Illegal input Sudoku, unsolvable.")
+                    exit(0)
+    
+    return indicies
+
+# Attempts to solve the Sudoku given by board.
+def solve_dat_shit(board, predef_indicies):
+    # Current index
+    row = col = 0
+    # Keeps track of all digits that has tried to be placed and is placed at the given index.
+    # Useful for backtracking and not getting stuck in an endless loop while trying the same
+    # digit over and over again.
+    used_digits_at_index = {}
 
     while True:
-        print('Index: ' + str(row) + ", "  + str(col))
-        #print_board(board)
-        #time.sleep(0.50)
-        bp()
+        if ANIMATION_MODE:
+            animate_solution(board, row, col)
+
+        # Skip index that can't be changed.
         if (row, col) in predef_indicies:
             row, col = next_index(row, col)
-            if row == 9: # Reached the end
+            if row == 9:
                 print('Solution found:')
                 return board
+
+        # Try to insert a digit at current index, otherwise backtrack.
         else:
-            #if (row, col) in used_digits_at_index:
-            #    if len(used_digits_at_index[(row, col)]) == 9:
-            #        print('No solution found, len')
-            #        return board
             digit_placed = False
             for digit in range(1, 10):
                 if valid_digit(board, digit, row, col, used_digits_at_index):
@@ -124,47 +160,28 @@ def solve_dat_shit(board, row, col, used_digits_at_index, predef_indicies):
                     else:
                         used_digits_at_index[(row, col)] = [digit]
                     row, col = next_index(row, col)
-                    if row == 9: # Reached the end
+                    if row == 9:
+                        if ANIMATION_MODE:
+                            os.system('clear')
                         print('Solution found:')
                         return board
                     digit_placed = True
                     break
-
+                
+            # No digit could be placed, try to backtrack.
             if not digit_placed:
-                # Reached dead end, try to backtrack
-                print('Backtracking at index: ' + str(row) + ", "  + str(col))
+                if ANIMATION_MODE:
+                    print('Backtracking at index: ' + str(row) + ", "  + str(col))
                 #print_board(board)
                 used_digits_at_index[(row, col)] = []
                 board[row][col] = 0
                 row, col = prev_index(row, col)
                 while (row, col) in predef_indicies:
                     row, col = prev_index(row, col)
-                if row == -1:
-                    print('No solution found')
-                    return board
-            
-    
-def print_board(board):
-    print('=================================')
-    for index, row in enumerate(board):
-        print('{} | {} | {}'.format(row[:3], row[3:6], row[6:9]))
-        if (index + 1) % 3 == 0 and index < 7: # Fancy way of writing "if index == 2 or 5"
-            print('---------------------------------')
-    print('=================================')
-    
-def get_predefined_indicies(board):
-    indicies = []
-    for row in range(0, 9):
-        for col in range(0, 9):
-            if board[row][col] != 0:
-                indicies.append((row, col))
-    
-    return indicies
             
 
 if __name__ == '__main__':
-    used_digits_at_index = {}
-    predef_indicies = get_predefined_indicies(input_data)
-    print_board(solve_dat_shit(input_data, 0, 0, used_digits_at_index, predef_indicies))
+    predef_indicies = get_predefined_digit_indicies(input_sudoku)
+    print_board(solve_dat_shit(input_sudoku, predef_indicies))
     
     
